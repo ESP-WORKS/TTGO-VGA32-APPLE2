@@ -63,3 +63,4 @@ Multi-disk games work: when the game asks for the next disk, press `F2`, pick th
 
 - Original ESP32-S3 project: [codesafe/ESP32-VGA_AppleII_Emulator](https://github.com/codesafe/ESP32-VGA_AppleII_Emulator)
 - [FabGL](https://github.com/fdivitto/FabGL) — Fabrizio Di Vittorio
+
