@@ -3,9 +3,6 @@
 #include "./VGA/ESP32S3VGA.h"
 #include "./AppleII/Apple2Machine.h"
 
-
-// Ported by FG1998 using Claude.ai
-
 // ---------------------------------------------------------------------------
 // PROFILING / TESTE
 //   NO_RENDER = 1  -> pula machine->Render() por completo.
@@ -13,6 +10,23 @@
 //                     Se o FPS disparar, o gargalo e o Render().
 // ---------------------------------------------------------------------------
 #define NO_RENDER   0
+
+// ---------------------------------------------------------------------------
+// VGA_TEST_PATTERN
+//   1 = em vez de rodar o emulador, desenha um padrao de teste e para.
+//
+//   No modo 320x200 o pixel e 0,833 (mais alto que largo). Por isso a figura
+//   e desenhada 120x100, ja compensando: na tela ela deve sair REDONDA.
+//
+//   O que olhar:
+//     FIGURA BRANCA  -> redonda = proporcao correta. Achatada = o monitor esta
+//                       esticando para 16:9 (ajuste no menu do monitor, procure
+//                       por "Aspect", "4:3" ou "1:1").
+//     BORDA VERMELHA -> limite do framebuffer 320x200. Se nao aparecer inteira,
+//                       o monitor esta cortando (overscan).
+//     RETANGULO VERDE -> area do Apple II (280x192), colada no topo.
+// ---------------------------------------------------------------------------
+#define VGA_TEST_PATTERN   0
 
 // ---------------------------------------------------------------------------
 // LIMITADOR DE VELOCIDADE
@@ -72,15 +86,6 @@ Apple2Machine *machine;
 void setup()
 {
 	Serial.begin(115200);
-
-	// Ensures the bootloader runs on the next power-up
-    const esp_partition_t* otadata = esp_partition_find_first(
-        ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_OTA, NULL);
-    if (otadata) {
-        esp_partition_erase_range(otadata, 0, otadata->size);
-    }
-
-	
 	if(psramInit())
 		Serial.println("\nPSRAM is correctly initialized");
 	else
@@ -100,6 +105,55 @@ void setup()
 #endif
 
     vga->start();
+
+#if VGA_TEST_PATTERN
+	{
+		int branco   = vga->rgb(255, 255, 255);
+		int verde    = vga->rgb(0, 255, 0);
+		int vermelho = vga->rgb(255, 0, 0);
+
+		vga->clear(vga->rgb(0, 0, 0));
+
+		// borda do framebuffer inteiro (320x200): mostra corte do monitor
+		for (int x = 0; x < 320; x++) { vga->dot(x, 0, vermelho); vga->dot(x, 199, vermelho); }
+		for (int y = 0; y < 200; y++) { vga->dot(0, y, vermelho); vga->dot(319, y, vermelho); }
+
+		// area do Apple II: 280x192 colada no topo, em (20,0)
+		for (int x = 0; x < 280; x++) { vga->dot(20 + x, 0, verde); vga->dot(20 + x, 191, verde); }
+		for (int y = 0; y < 192; y++) { vga->dot(20, y, verde); vga->dot(299, y, verde); }
+
+		// ------------------------------------------------------------------
+		// Neste modo o pixel NAO e quadrado: 320x200 vem do 640x400, entao
+		// cada pixel e mais alto que largo (proporcao 0,833).
+		//
+		// Por isso a figura abaixo e desenhada DEFORMADA de proposito -- 120
+		// pixels de largura por 100 de altura. Se o monitor estiver honesto,
+		// ela aparece REDONDA/QUADRADA na tela.
+		// ------------------------------------------------------------------
+		const int cx = 160, cy = 100;
+		const int rx = 60,  ry = 50;
+
+		// retangulo 120x100 -> deve parecer um QUADRADO
+		for (int i = -rx; i <= rx; i++) { vga->dot(cx + i, cy - ry, branco); vga->dot(cx + i, cy + ry, branco); }
+		for (int i = -ry; i <= ry; i++) { vga->dot(cx - rx, cy + i, branco); vga->dot(cx + rx, cy + i, branco); }
+
+		// elipse 60x50 -> deve parecer um CIRCULO
+		for (int a = 0; a < 1440; a++)
+		{
+			float r = a * 3.14159265f / 720.0f;
+			vga->dot(cx + (int)(rx * cosf(r)), cy + (int)(ry * sinf(r)), branco);
+		}
+
+		Serial.println("[TESTE] A figura foi desenhada 120x100 (deformada) porque o");
+		Serial.println("[TESTE] pixel deste modo e 0,833. Na tela ela deve sair REDONDA.");
+		Serial.println("[TESTE]   redonda   -> monitor honesto, proporcao correta");
+		Serial.println("[TESTE]   achatada  -> monitor esticando para 16:9 (ajuste no monitor)");
+		Serial.println("[TESTE]   alongada  -> monitor comprimindo");
+		Serial.println("[TESTE] ponha VGA_TEST_PATTERN em 0 para voltar ao emulador.");
+		while (1) delay(1000);
+	}
+#endif
+
 	DEBUG_PRINTLN("===> INIT Machine");
 	machine->InitMachine();
 }

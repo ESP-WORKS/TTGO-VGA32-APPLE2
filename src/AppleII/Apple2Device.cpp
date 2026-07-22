@@ -11,8 +11,17 @@
 // Escreve um pixel do Apple II (280x192) centralizado no framebuffer 320x240.
 // Formato: 1 byte RAW (RGB222 + sync), RAM interna, indice ^2 (byte swap do I2S).
 // Elimina o backbuffer Color* de 161KB que ficava na PSRAM.
+// Modo de video: VGA_320x200_70Hz. O pixel dele nao e quadrado (0,833), o que
+// compensa em parte o esticao horizontal de monitores widescreen -- por isso
+// fica melhor que o 320x240, cujo pixel e quadrado.
+//
+// Em 320x200 a tela do Apple II (280x192) deixa apenas 8 linhas sobrando.
+// Centralizar daria 4 em cima e 4 embaixo: fino demais para o indicador e feio
+// no topo. Entao COLAMOS NO TOPO e usamos as 8 linhas de baixo para o "DISK".
+#define VGA_LINES  200
+
 #define FB_OFFX  ((VGA_HRES - SCREENSIZE_X) / 2)   // 20
-#define FB_OFFY  ((VGA_VRES - SCREENSIZE_Y) / 2)   // 24
+#define FB_OFFY  0                                 // colado no topo
 
 static inline void fbPoint(int x, int y, uint8_t raw)
 {
@@ -24,7 +33,7 @@ static inline void fbPoint(int x, int y, uint8_t raw)
 // Usada para desenhar na borda (fora da area 280x192 do emulador).
 static inline void fbRaw(int x, int y, uint8_t raw)
 {
-	if ((unsigned)x >= VGA_HRES || (unsigned)y >= VGA_VRES) return;
+	if ((unsigned)x >= VGA_HRES || (unsigned)y >= VGA_LINES) return;
 	_fb[y * VGA_HRES + (x ^ 2)] = raw;
 }
 
@@ -36,9 +45,10 @@ static const uint8_t glyphDISK[4][7] = {
 	{ 0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11 },   // K
 };
 
-// Canto inferior direito, dentro da borda (a tela do Apple II vai ate y=215)
+// Canto inferior direito, nas 8 linhas que sobram (a tela do Apple vai ate y=191).
+// O glifo tem 7 pixels de altura: 192..198 cabe sem invadir a area do Apple.
 #define DISK_X   292
-#define DISK_Y   229
+#define DISK_Y   192
 
 // ---- instrumentacao do disco (lida pelo main.cpp) ----
 unsigned long g_diskReads = 0;   // nibbles entregues por segundo

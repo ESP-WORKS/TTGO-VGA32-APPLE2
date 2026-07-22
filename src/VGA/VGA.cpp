@@ -79,8 +79,16 @@ bool VGA::init(const PinConfig /*pins*/, const Mode m, int b, int buffercount)
 
     vgaCtrl.begin();
     vgaCtrl.setDrawScanlineCallback(drawScanline);
-    vgaCtrl.setResolution(QVGA_320x240_60Hz);
-    //vgaCtrl.setResolution(VGA_320x200_70Hz); 
+    // 320x200: o pixel deste modo nao e quadrado (0,833), o que compensa em
+    // parte o esticao horizontal de monitores widescreen. O 320x240 tem pixel
+    // quadrado e, num monitor que estica 4:3 para 16:9, fica largo demais.
+    //
+    // IMPORTANTE: VGA_VRES no VGA.h precisa ser 200. Ele define o tamanho do
+    // framebuffer -- com 240 sobram 12,8 KB de RAM INTERNA alocados a toa
+    // (e a RAM interna e o recurso mais escasso: o callback roda em ISR e nao
+    // pode ler PSRAM).
+    vgaCtrl.setResolution(VGA_320x200_70Hz);
+    //vgaCtrl.setResolution(QVGA_320x240_60Hz);
 
     // LUT: 64 cores RGB222 -> pixel RAW (ja com os sync bits)
     for (int i = 0; i < 64; i++)
@@ -102,8 +110,11 @@ bool VGA::show()
     return true;
 }
 
+// MORTO: desde que DrawPoint/RenderFont passaram a escrever direto no _fb,
+// nao existe mais backbuffer (getBackBuffer() devolve NULL) e ninguem chama
+// isto. Mantido so para nao mexer no VGA.h.
+//
 // Converte o backbuffer (Color*, 3 bytes/pixel) direto para o framebuffer.
-// Centraliza a imagem 280x192 dentro de 320x240.
 void VGA::blit(const void *src, int srcW, int srcH)
 {
     const AppleColor *base = (const AppleColor *)src;

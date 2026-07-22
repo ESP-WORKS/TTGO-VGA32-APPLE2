@@ -6,8 +6,11 @@
 
 // Escreve um pixel do Apple II (280x192) centralizado no framebuffer 320x240.
 // Formato: 1 byte RAW (RGB222 + sync), RAM interna, indice ^2 (byte swap do I2S).
+// ATENCAO: estes offsets sao os MESMOS do Apple2Device.cpp. Se mudar la,
+// mude aqui tambem -- e uma duplicacao perigosa: com valores diferentes, o
+// texto sai deslocado do grafico (o cursor do BASIC chega a sumir da tela).
 #define FB_OFFX  ((VGA_HRES - SCREENSIZE_X) / 2)   // 20
-#define FB_OFFY  ((VGA_VRES - SCREENSIZE_Y) / 2)   // 24
+#define FB_OFFY  0                                 // colado no topo
 
 static inline void fbPoint(int x, int y, uint8_t raw)
 {
