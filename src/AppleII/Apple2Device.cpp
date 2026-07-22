@@ -18,10 +18,10 @@
 // Em 320x200 a tela do Apple II (280x192) deixa apenas 8 linhas sobrando.
 // Centralizar daria 4 em cima e 4 embaixo: fino demais para o indicador e feio
 // no topo. Entao COLAMOS NO TOPO e usamos as 8 linhas de baixo para o "DISK".
-#define VGA_LINES  200
+#define VGA_LINES  VGA_VRES
 
 #define FB_OFFX  ((VGA_HRES - SCREENSIZE_X) / 2)   // 20
-#define FB_OFFY  0                                 // colado no topo
+#define FB_OFFY  ((VGA_VRES - SCREENSIZE_Y) / 2)   // (240-192)/2 = 24
 
 static inline void fbPoint(int x, int y, uint8_t raw)
 {
@@ -48,7 +48,7 @@ static const uint8_t glyphDISK[4][7] = {
 // Canto inferior direito, nas 8 linhas que sobram (a tela do Apple vai ate y=191).
 // O glifo tem 7 pixels de altura: 192..198 cabe sem invadir a area do Apple.
 #define DISK_X   292
-#define DISK_Y   192
+#define DISK_Y   229
 
 // ---- instrumentacao do disco (lida pelo main.cpp) ----
 unsigned long g_diskReads = 0;   // nibbles entregues por segundo

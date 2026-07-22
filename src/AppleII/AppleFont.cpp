@@ -10,7 +10,7 @@
 // mude aqui tambem -- e uma duplicacao perigosa: com valores diferentes, o
 // texto sai deslocado do grafico (o cursor do BASIC chega a sumir da tela).
 #define FB_OFFX  ((VGA_HRES - SCREENSIZE_X) / 2)   // 20
-#define FB_OFFY  0                                 // colado no topo
+#define FB_OFFY  ((VGA_VRES - SCREENSIZE_Y) / 2)   // (240-192)/2 = 24
 
 static inline void fbPoint(int x, int y, uint8_t raw)
 {

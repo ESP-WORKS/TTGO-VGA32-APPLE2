@@ -87,8 +87,8 @@ bool VGA::init(const PinConfig /*pins*/, const Mode m, int b, int buffercount)
     // framebuffer -- com 240 sobram 12,8 KB de RAM INTERNA alocados a toa
     // (e a RAM interna e o recurso mais escasso: o callback roda em ISR e nao
     // pode ler PSRAM).
-    vgaCtrl.setResolution(VGA_320x200_70Hz);
-    //vgaCtrl.setResolution(QVGA_320x240_60Hz);
+    //vgaCtrl.setResolution(VGA_320x200_70Hz);
+    vgaCtrl.setResolution(QVGA_320x240_60Hz);
 
     // LUT: 64 cores RGB222 -> pixel RAW (ja com os sync bits)
     for (int i = 0; i < 64; i++)
