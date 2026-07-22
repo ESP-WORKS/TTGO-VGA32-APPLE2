@@ -30,8 +30,9 @@ void Apple2Machine::InitMachine()
 	// o InsetFloppy() faca, entao a troca de ordem e segura.
 	device.Create(&cpu);
 
-	device.SelectFloppy();       // menu: escolhe a imagem
-	device.InsetFloppy();        // insere a escolhida
+	// Sem menu no boot: a maquina liga com o drive vazio, igual a um Apple II
+	// de verdade. O disco entra depois, com F2.
+	device.InsetFloppy();
 
 	// unset the Power-UP byte
 	mem.WriteByte(0x3F4, 0);
@@ -51,8 +52,10 @@ bool Apple2Machine::Booting()
 	DEBUG_PRINTLN("====> BOOTING ...");
 	DEBUG_PRINTLN("Load Apple II Rom");
 	memcpy(mem.rom, appleIIrom, ROMSIZE);
+
 	DEBUG_PRINTLN("Load Disk II");
 	memcpy(mem.sl6, diskII, SL6SIZE);
+
 	cpu.Reset(mem);
 	return true;
 }
@@ -115,6 +118,13 @@ void Apple2Machine::Reset()
 
 void Apple2Machine::Run(long long cycle)
 {
+	// F7 -> reinicia o ESP32
+	if (device.exitRequested)
+	{
+		device.exitRequested = false;
+		ESP.restart();
+	}
+
 	// F1 -> ajuda
 	if (device.helpRequested)
 	{
@@ -130,16 +140,32 @@ void Apple2Machine::Run(long long cycle)
 	{
 		device.diskMenuRequested = false;
 		device.SelectFloppy();
-		device.SwapFloppy();
-		device.ForceRedraw();      // apaga a tela do menu
+		if (!device.menuCancelled)     // ESC no menu = nao troca o disco
+		{
+			device.SwapFloppy();
+			device.ForceRedraw();      // apaga a tela do menu
+		}
 		return;
 	}
 
-	// F12 -> Reset (equivalente ao Ctrl+Reset do Apple II)
+	// Ctrl+F12 -> liga/desliga: limpa a RAM, recarrega a ROM e boota o disco.
+	if (device.coldBootRequested)
+	{
+		device.coldBootRequested = false;
+		Reset();
+		return;
+	}
+
+	// F12 -> Ctrl+Reset. Num Apple II real isso so puxa a linha de RESET: a ROM
+	// autostart confere o power-up byte e, se ele estiver valido, faz warm start
+	// e cai no "]" do Applesoft. Nao limpamos a RAM nem recarregamos a ROM --
+	// isso seria desligar e ligar (que e o Ctrl+F12 acima).
 	if (device.resetMachine)
 	{
 		device.resetMachine = false;
-		Reset();
+		device.MotorOff();
+		cpu.Reset(mem);
+		device.ForceRedraw();
 		return;
 	}
 

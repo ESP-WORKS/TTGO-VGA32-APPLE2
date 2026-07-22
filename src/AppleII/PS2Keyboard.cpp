@@ -16,6 +16,8 @@ static bool s_resetReq = false;
 static bool s_menuReq  = false;
 static bool s_helpReq  = false;
 static bool s_colorReq = false;
+static bool s_coldReq  = false;
+static bool s_exitReq  = false;
 
 void ps2_begin()
 {
@@ -69,6 +71,13 @@ int ps2_poll()
 #endif
 			return -1;
 
+		case fabgl::VK_F7:
+			s_exitReq = true;
+#if PS2_DEBUG
+			Serial.println("[PS2] F7 -> SAIR PARA O BOOTLOADER");
+#endif
+			return -1;
+
 		case fabgl::VK_F11:
 			s_colorReq = true;
 #if PS2_DEBUG
@@ -77,9 +86,11 @@ int ps2_poll()
 			return -1;
 
 		case fabgl::VK_F12:
-			s_resetReq = true;
+			// F12 sozinho = Ctrl+Reset (warm). Ctrl+F12 = liga/desliga (cold).
+			if (item.CTRL) s_coldReq  = true;
+			else           s_resetReq = true;
 #if PS2_DEBUG
-			Serial.println("[PS2] F12 -> RESET");
+			Serial.printf("[PS2] F12 -> %s\n", item.CTRL ? "COLD BOOT" : "CTRL-RESET");
 #endif
 			return -1;
 
@@ -149,5 +160,19 @@ bool ps2_colorRequested()
 {
 	bool r = s_colorReq;
 	s_colorReq = false;
+	return r;
+}
+
+bool ps2_coldRequested()
+{
+	bool r = s_coldReq;
+	s_coldReq = false;
+	return r;
+}
+
+bool ps2_exitRequested()
+{
+	bool r = s_exitReq;
+	s_exitReq = false;
 	return r;
 }

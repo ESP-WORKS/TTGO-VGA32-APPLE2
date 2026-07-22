@@ -57,6 +57,9 @@ public:
 	bool resetMachine;
 	bool diskMenuRequested;       // F2: abrir o menu de disco
 	bool helpRequested;           // F1: tela de ajuda
+	bool exitRequested;           // F7: sair para o bootloader
+	bool menuCancelled;           // ESC no menu: nao troca o disco
+	bool coldBootRequested;       // Ctrl+F12: liga/desliga
 	bool colorMonitor;
 	BYTE zoomscale;
 
@@ -151,7 +154,8 @@ public:
 
 	bool UpdateFloppyDisk();
 	void SelectFloppy();          // menu de escolha do disco
-	void InsetFloppy();           // insere no boot (reseta o estado do drive)
+	void InsetFloppy();           // liga com o drive vazio
+	void MotorOff();              // desliga o motor (usado no Ctrl+Reset)
 	void SwapFloppy();            // troca com a maquina ligada (NAO mexe no drive)
 	void ShowHelp();              // F1
 	void ForceRedraw();           // invalida os caches de video

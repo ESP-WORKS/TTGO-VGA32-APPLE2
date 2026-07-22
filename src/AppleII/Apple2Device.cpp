@@ -196,6 +196,8 @@ void Apple2Device::Reset()
 	resetMachine = false;
 	diskMenuRequested = false;
 	helpRequested = false;
+	coldBootRequested = false;
+	exitRequested = false;
 	colorMonitor = true;
 	keyboard = 0;
 
@@ -455,6 +457,9 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 
 			// 2) avanca. Em leitura sequencial (gap curto) anda 1, igual ao original.
 			//    Se houve gap longo, o disco girou nesse tempo: pula os nibbles.
+			//    O cpu.Reset() zera o tick, entao ele pode andar para tras.
+			if (cpu->tick < lastTick)
+				lastTick = cpu->tick;
 			long long elapsed = cpu->tick - lastTick;
 			lastTick = cpu->tick;
 
@@ -1007,8 +1012,8 @@ void Apple2Device::SelectFloppy()
 	if (!filesystem.BeginSD())
 	{
 		ClearScreen();
-		DrawText(2, 10, "CARTAO SD NAO ENCONTRADO", false);
-		DrawText(2, 12, "INSIRA O CARTAO E RESETE", false);
+		DrawText(2, 10, "SD CARD NOT FOUND", false);
+		DrawText(2, 12, "INSERT SD CARD AND RESET", false);
 		while (1) delay(100);
 	}
 
@@ -1017,7 +1022,7 @@ void Apple2Device::SelectFloppy()
 	if (!ents)
 	{
 		ClearScreen();
-		DrawText(2, 10, "SEM PSRAM PARA O MENU", false);
+		DrawText(2, 10, "NO PSRAM FOR MENU", false);
 		while (1) delay(100);
 	}
 
@@ -1029,6 +1034,7 @@ void Apple2Device::SelectFloppy()
 
 	const int VISIBLE = 17;
 	selectedDisk[0] = 0;
+	menuCancelled = false;
 
 	while (1)
 	{
@@ -1068,7 +1074,7 @@ void Apple2Device::SelectFloppy()
 			}
 
 			char rodape[SCREENTEXT_X + 1];
-			snprintf(rodape, sizeof(rodape), "%d/%d  ARROWS  RETURN=OK  ESC=BACK",
+			snprintf(rodape, sizeof(rodape), "%d/%d  ARROWS  RETURN=OK  ESC=CANCEL",
 			         total ? sel + 1 : 0, total);
 			DrawText(1, 22, rodape, false);
 			redraw = false;
@@ -1089,13 +1095,19 @@ void Apple2Device::SelectFloppy()
 			if (sel >= top + VISIBLE) top = sel - VISIBLE + 1;
 			redraw = true;
 		}
-		else if (k == 0x1B)                              // ESC = sobe um nivel
+		else if (k == 0x1B)                              // ESC
 		{
 			if (strcmp(cur, "/") != 0)
 			{
-				parentDir(cur);
+				parentDir(cur);                          // dentro de pasta: sobe um nivel
 				n = filesystem.ListDir(cur, ents, MAXENTRIES);
 				sel = 0; top = 0; redraw = true;
+			}
+			else
+			{
+				selectedDisk[0] = 0;                     // na raiz: cancela, volta pro Apple
+				menuCancelled = true;
+				break;
 			}
 		}
 		else if (k == 0x0D)                              // RETURN
@@ -1127,7 +1139,7 @@ void Apple2Device::SelectFloppy()
 	}
 
 	free(ents);
-	ps2_menuRequested();      // descarta um F1 apertado dentro do proprio menu
+	ps2_menuRequested();      // descarta um F2 apertado dentro do proprio menu
 	Serial.printf("[MENU] escolhido: %s\n", selectedDisk);
 
 	ClearScreen();
@@ -1160,24 +1172,27 @@ void Apple2Device::ShowHelp()
 	ClearScreen();
 	DrawText( 8,  1, "EMULATOR KEYS", true);
 
-	DrawText( 2,  4, "F1    THIS HELP", false);
-	DrawText( 2,  5, "F2    INSERT/SWAP DISKS", false);
-	DrawText( 2,  6, "F11   COLOR/ GREEN DISPLAY", false);
-	DrawText( 2,  7, "F12   RESET  (CTRL-RESET)", false);
+	DrawText( 2,  3, "F1    THIS HELP", false);
+	DrawText( 2,  4, "F2    INSERT/SWAP DISKS", false);
+	DrawText( 2,  5, "F11   COLOR/GREEN DISPLAY", false);
+	DrawText( 2,  6, "F12   CTRL-RESET (TO BASIC)", false);
+	DrawText( 2,  7, "CTRL+F12  POWER CYCLE (REBOOT)", false);
+	DrawText( 2,  8, "F7    EXIT TO ESP32 BOOTLOADER", false);
 
 	DrawText( 2,  9, "ARROWS     APPLE ][ ARROW KEYS", false);
 	DrawText( 2, 10, "ESC        ESC", false);
-	DrawText( 2, 11, "CTRL+KEY   CONTROL CODES", false);
+	DrawText( 2, 11, "CTRL+C     BREAK (BASIC)", false);
+	DrawText( 2, 12, "CTRL+KEY   CONTROL CODES", false);
 
-	DrawText( 2, 13, "DISK MENU:", true);
-	DrawText( 2, 14, "  ARROWS   NAVIGATE", false);
-	DrawText( 2, 15, "  RETURN   OPEN FOLDER OR BOOT", false);
-	DrawText( 2, 16, "  ESC      GO BACK ONE LEVEL", false);
+	DrawText( 2, 14, "DISK MENU:", true);
+	DrawText( 2, 15, "  ARROWS   NAVIGATE", false);
+	DrawText( 2, 16, "  RETURN   OPEN FOLDER OR BOOT", false);
+	DrawText( 2, 17, "  ESC      GO BACK ONE LEVEL", false);
 
-	DrawText( 2, 18, "PORTED BY FG1998 USING CLAUDE.AI", false);
-	DrawText( 2, 19, "COMPATIBLE WITH ESP32 BOOTLOADER", false);
-	DrawText( 2, 20, "GITHUB.COM/FG1998", false);
+	DrawText( 2, 19, "BOOTS WITH NO DISK: PRESS F2 TO", false);
+	DrawText( 2, 20, "INSERT ONE, THEN PR#6 TO BOOT IT.", false);
 
+	DrawText( 2, 22, "PORTED BY FG1998 - GITHUB.COM/FG1998", false);
 
 	DrawText( 9, 23, "PRESS ANY KEY", false);
 
@@ -1189,19 +1204,33 @@ void Apple2Device::ShowHelp()
 	ps2_menuRequested();
 	ps2_colorRequested();
 	ps2_resetRequested();
+	ps2_coldRequested();
 
 	ForceRedraw();
 }
 
+// Liga a maquina com o drive VAZIO -- e o que um Apple II real faz quando voce
+// liga sem disquete: a ROM do Disk II gira o motor procurando o setor de boot,
+// nao acha nada, e fica moendo com "APPLE ][" no topo da tela. Ctrl+Reset (F12)
+// sai disso e cai no "]". Dai da pra inserir um disco com F2 e dar CATALOG ou PR#6.
 void Apple2Device::InsetFloppy()
 {
-	//memset(&disk[0], 0, sizeof(FloppyDrive));
-	//memset(&disk[1], 0, sizeof(FloppyDrive));
 	disk[0].Reset();
 	disk[1].Reset();
+	selectedDisk[0] = 0;
+	Serial.println("Insert Floppy: drive vazio (Ctrl+Reset cai no BASIC)");
+}
 
-	Serial.printf("Insert Floppy: %s\n", selectedDisk);
-	InsertFloppy(selectedDisk, 0);
+// Desliga o motor do drive.
+//
+// Necessario no Ctrl+Reset: sem disco, a ROM do Disk II deixa o motor ligado, e
+// o motor ligado dispara o turbo do floppy (255.000 ciclos extras por frame) --
+// o BASIC ficaria a 6 FPS. No hardware o motor tem um timer de ~1s que o desliga
+// sozinho; aqui nao temos esse timer, entao desligamos no reset.
+void Apple2Device::MotorOff()
+{
+	disk[0].motorOn = false;
+	disk[1].motorOn = false;
 }
 
 bool Apple2Device::GetDiskMotorState()
@@ -1232,6 +1261,10 @@ void Apple2Device::UpdateKeyBoard()
 		diskMenuRequested = true;
 	if (ps2_helpRequested())
 		helpRequested = true;
+	if (ps2_coldRequested())
+		coldBootRequested = true;
+	if (ps2_exitRequested())
+		exitRequested = true;
 
 	// F11 = alterna monitor colorido / verde. Age na hora: so muda o DrawPoint.
 	if (ps2_colorRequested())

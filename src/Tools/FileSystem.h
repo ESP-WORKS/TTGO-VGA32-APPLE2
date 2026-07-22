@@ -78,6 +78,26 @@ public:
 
 	bool SDReady() { return _sdOk; }
 
+	// Lixo do macOS: "._foo.dsk" (AppleDouble), ".DS_Store", ".Spotlight-V100",
+	// ".Trashes", ".fseventsd". Tudo que comeca com ponto sai da lista.
+	static bool IsJunk(const char *path)
+	{
+		const char *b = strrchr(path, '/');
+		b = b ? b + 1 : path;
+		return (b[0] == '.');
+	}
+
+	// Ignora arquivos ocultos e o lixo que o macOS espalha em cartao FAT:
+	// ._nome (AppleDouble), .DS_Store, .Spotlight-V100, .Trashes, .fseventsd...
+	// Basta filtrar tudo que comeca com ponto. O File::name() pode vir com
+	// caminho, entao olhamos so o ultimo componente.
+	static bool IsHidden(const char *name)
+	{
+		const char *base = strrchr(name, '/');
+		base = base ? base + 1 : name;
+		return base[0] == '.';
+	}
+
 	static bool IsDiskImage(const char *name)
 	{
 		int n = strlen(name);
@@ -103,9 +123,15 @@ public:
 		{
 			if (f.isDirectory())
 			{
-				FullPath(dir, f.name(), out[n].path, PATHLEN);
-				out[n].isDir = true;
-				n++;
+				char full[PATHLEN];
+				FullPath(dir, f.name(), full, sizeof(full));
+				if (!IsJunk(full))
+				{
+					strncpy(out[n].path, full, PATHLEN - 1);
+					out[n].path[PATHLEN - 1] = 0;
+					out[n].isDir = true;
+					n++;
+				}
 			}
 			f = root.openNextFile();
 		}
@@ -119,7 +145,7 @@ public:
 			{
 				char full[PATHLEN];
 				FullPath(dir, f.name(), full, sizeof(full));
-				if (IsDiskImage(full))
+				if (IsDiskImage(full) && !IsJunk(full))
 				{
 					strncpy(out[n].path, full, PATHLEN - 1);
 					out[n].path[PATHLEN - 1] = 0;

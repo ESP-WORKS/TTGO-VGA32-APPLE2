@@ -21,7 +21,9 @@ int ps2_poll();
 // Teclas de funcao. Cada uma retorna true UMA vez e se limpa.
 bool ps2_helpRequested();    // F1  - tela de ajuda
 bool ps2_menuRequested();    // F2  - inserir / trocar disco
+bool ps2_exitRequested();    // F7  - sair para o ESP32 Bootloader
 bool ps2_colorRequested();   // F11 - monitor color / verde
-bool ps2_resetRequested();   // F12 - Reset (Ctrl+Reset do Apple II)
+bool ps2_resetRequested();   // F12      - Ctrl+Reset (warm: cai no BASIC)
+bool ps2_coldRequested();    // Ctrl+F12 - liga/desliga (cold: boota o disco)
 
 #endif

@@ -80,6 +80,7 @@ bool VGA::init(const PinConfig /*pins*/, const Mode m, int b, int buffercount)
     vgaCtrl.begin();
     vgaCtrl.setDrawScanlineCallback(drawScanline);
     vgaCtrl.setResolution(QVGA_320x240_60Hz);
+    //vgaCtrl.setResolution(VGA_320x200_70Hz); 
 
     // LUT: 64 cores RGB222 -> pixel RAW (ja com os sync bits)
     for (int i = 0; i < 64; i++)
