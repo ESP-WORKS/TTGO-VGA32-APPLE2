@@ -242,6 +242,7 @@ void loop()
     {
         fpsMillis = millis();
         if (accN == 0) accN = 1;
+		
         Serial.printf("FPS:%d  Run:%luus  devRender:%luus  cyc:%lu  floppy:%lu  | nibs/s:%lu  track:%lu  nib:%lu  skips:%lu\n",
                       fpscount,
                       accRun / accN,
@@ -252,6 +253,7 @@ void loop()
                       g_diskTrack,
                       g_diskNib,
                       g_diskSkips);
+					  
         g_diskReads = 0;
         g_diskSkips = 0;
         accRun = accRender = accShow = 0;
