@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 #define SD_CLK   14
 //#define SD_MISO   2
-#define SD_MISO_LILYGO  2
+#define SD_MISO_LILYGO  35
 #define SD_MISO_OLIMEX  35
 #define SD_MOSI  12
 #define SD_CS    13
@@ -58,53 +58,55 @@ public:
 		SD.end();
 	}
 
-	// Monta o cartao. 4 MHz de proposito: a 20 MHz essa fiacao dava crc error,
-	// e a imagem e lida uma vez so -- velocidade ali nao vale nada.
+	// Monta o cartao. A sua LilyGO esta usando MISO=35.
+	// Mantemos 4 MHz porque esta fiacao ja foi validada nessa velocidade.
+/*
 	bool BeginSD() {
 		if (_sdOk) return true;
-		
-		// Tentativa 1: LILYGO (MISO 2)
+
+		// LilyGO TTGO VGA32: MISO validado pelo projeto = GPIO35.
+		SPI.begin(SD_CLK, 35, SD_MOSI, SD_CS);
+
+		if (!SD.begin(SD_CS, SPI, 4000000, "/sd")) {
+			Serial.println("Card Mount Failed (MISO=35)");
+			_sdOk = false;
+			return false;
+		}
+
+		_sdOk = true;
+		return true;
+	}
+
+	*/
+	
+	bool BeginSD()
+	{
+		if (_sdOk) return true;
+    	// Tentativa 1: LILYGO (MISO 2)
+		Serial.println("Tentativa 1: LILYGO (MISO 2)");
     	SPI.begin(SD_CLK, SD_MISO_LILYGO, SD_MOSI, SD_CS);
- 
-    	if (!SD.begin(SD_CS, SPI, 4000000, "/sd")) {
+			Serial.println("MISO = 2 falohu");
+			if (!SD.begin(SD_CS, SPI, 4000000, "/sd")) 	{
 			// Falhou na tentativa LILYGO. Limpa o barramento e tenta o fallback.
-			SD.end();
-			SPI.end(); 
+				
+				SD.end();
+				SPI.end(); 
 
 			// Tentativa 2: OLIMEX (MISO 35)
+			Serial.println("Tentativa 2: OLIMEX (MISO 35)");
 			SPI.begin(SD_CLK, SD_MISO_OLIMEX, SD_MOSI, SD_CS);
 		
 			if (!SD.begin(SD_CS, SPI, 4000000, "/sd")) {
 				// Falhou em ambas as tentativas
 				Serial.println("Card Mount Failed");
 				_sdOk = false;
-				return false;	
-				
+				return false;
 			}
     	}
 		_sdOk = true;
 		return true;
 	}
-
-	/*
-	bool BeginSD()
-	{
-		if (_sdOk) return true;
-
-		SPI.begin(SD_CLK, SD_MISO, SD_MOSI, SD_CS);
-		if (!SD.begin(SD_CS, SPI, 4000000))
-		{
-			Serial.println("[SD] cartao nao montou");
-			_sdOk = false;
-			return false;
-		}
-		uint64_t mb = SD.cardSize() / (1024ULL * 1024ULL);
-		Serial.printf("[SD] montado: %llu MB  (CLK=%d MISO=%d MOSI=%d CS=%d)\n",
-		              mb, SD_CLK, SD_MISO, SD_MOSI, SD_CS);
-		_sdOk = true;
-		return true;
-	}
-	*/
+	
 
 	bool SDReady() { return _sdOk; }
 

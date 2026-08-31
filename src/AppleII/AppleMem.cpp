@@ -1,15 +1,21 @@
-﻿
+
 /*
 	MOS 6502 CPU Emulator
 */
 
 #include "AppleMem.h"
 #include "Tools/Log.h"
+#include <esp_heap_caps.h>
 
 Memory::Memory()
 {
 	DEBUG_PRINTLN("Construct Memory");
 	device = NULL;
+	ram = nullptr;
+	rom = nullptr;
+	lgc = nullptr;
+	bk2 = nullptr;
+	sl6 = nullptr;
 }
 
 Memory::~Memory()
@@ -19,22 +25,38 @@ Memory::~Memory()
 
 void Memory::Create()
 {
-	ram = (BYTE*)ps_malloc(RAMSIZE);  // 48K of ram in $000-$BFFF
-	rom = (BYTE*)ps_malloc(ROMSIZE);  // 12K of rom in $D000-$FFFF
-	lgc = (BYTE*)ps_malloc(LGCSIZE);
-	bk2 = (BYTE*)ps_malloc(BK2SIZE);
-	sl6 = (BYTE*)ps_malloc(SL6SIZE);
+	// O caminho critico do 6502 nao pode depender da PSRAM.
+	// MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT garante DRAM interna,
+	// deixando a PSRAM exclusivamente para dados grandes como os discos.
+	ram = (BYTE*)heap_caps_malloc(RAMSIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+	rom = (BYTE*)heap_caps_malloc(ROMSIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+	lgc = (BYTE*)heap_caps_malloc(LGCSIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+	bk2 = (BYTE*)heap_caps_malloc(BK2SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+	sl6 = (BYTE*)heap_caps_malloc(SL6SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
+	if (!ram || !rom || !lgc || !bk2 || !sl6)
+	{
+		DEBUG_PRINTLN("ERRO: RAM interna insuficiente para memoria Apple II");
+		Destroy();
+		return;
+	}
+
+	DEBUG_PRINTLN("Apple II memory: INTERNAL DRAM");
 	Reset();
 }
 
 void Memory::Destroy()
 {
-	free(ram);
-	free(rom);
-	free(lgc);
-	free(bk2);
-	free(sl6);
+	heap_caps_free(ram);
+	heap_caps_free(rom);
+	heap_caps_free(lgc);
+	heap_caps_free(bk2);
+	heap_caps_free(sl6);
+	ram = nullptr;
+	rom = nullptr;
+	lgc = nullptr;
+	bk2 = nullptr;
+	sl6 = nullptr;
 }
 
 void Memory::Reset()
@@ -52,7 +74,7 @@ void Memory::Reset()
 }
 
 
-BYTE Memory::ReadByte(int address)
+IRAM_ATTR BYTE Memory::ReadByte(int address)
 {
 #if 0
 	BYTE v = memory[address];
@@ -83,7 +105,7 @@ BYTE Memory::ReadByte(int address)
 #endif
 }
 
-void Memory::WriteByte(int address, BYTE value)
+IRAM_ATTR void Memory::WriteByte(int address, BYTE value)
 {
 #if 0
 
@@ -113,7 +135,7 @@ void Memory::WriteByte(int address, BYTE value)
 #endif
 }
 
-WORD Memory::ReadWord(int addr)
+IRAM_ATTR WORD Memory::ReadWord(int addr)
 {
 	BYTE m0 = ReadByte(addr);
 	BYTE m1 = ReadByte(addr + 1);
@@ -121,7 +143,7 @@ WORD Memory::ReadWord(int addr)
 	return w;
 }
 
-void Memory::WriteWord(WORD value, int addr)
+IRAM_ATTR void Memory::WriteWord(WORD value, int addr)
 {
 	WriteByte(addr, value >> 8);
 	WriteByte(addr + 1, value & 0xFF);

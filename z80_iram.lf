@@ -1,0 +1,20 @@
+#
+# main/z80_iram.lf
+#
+# Linker fragment: promove o objeto INTEIRO do z80.cpp para IRAM.
+#
+# Por que: o dispatch (do_execute) chama os handlers de opcode via ponteiro
+# de funcao (entries[opcode].func). IRAM_ATTR na funcao-mae NAO promove as
+# chamadas indiretas -- os handlers ficariam em flash e o ganho seria pequeno.
+# Aqui, o objeto todo vai para IRAM: dispatch + read/write + TODOS os handlers
+# gerados pelo codegen/opcodes_impl.cpp-inc rodam de IRAM.
+#
+# Custo: IRAM eh finita nessa placa (o FabGL usa bastante para o VGA). Se o
+# link estourar IRAM, o erro sera claro no ld ("dram/iram section overflows").
+# Reverter: comente este arquivo na registracao (CMakeLists) -- os IRAM_ATTR
+# individuais no z80.cpp continuam ativos e mantem o minimo em IRAM.
+#
+[mapping:z80_iram]
+archive: libmain.a
+entries:
+    z80 (noflash_text)

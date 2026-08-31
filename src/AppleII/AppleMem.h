@@ -1,4 +1,4 @@
-﻿#ifndef MEMORY_H
+#ifndef MEMORY_H
 #define MEMORY_H
 
 #include "Predef.h"
@@ -34,10 +34,10 @@ class Memory
 		void Destroy();
 		void Reset();
 
-		BYTE ReadByte(int addr);
-		void WriteByte(int addr, BYTE value);
-		WORD ReadWord(int addr);
-		void WriteWord(WORD value, int addr);
+		IRAM_ATTR BYTE ReadByte(int addr);
+		IRAM_ATTR void WriteByte(int addr, BYTE value);
+		IRAM_ATTR WORD ReadWord(int addr);
+		IRAM_ATTR void WriteWord(WORD value, int addr);
 
 		WORD UpLoadProgram(BYTE *code, int codesize);
 		void UpLoadProgram(int startPos, BYTE *code, int codesize);
