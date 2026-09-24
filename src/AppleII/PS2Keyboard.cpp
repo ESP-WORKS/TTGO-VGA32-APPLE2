@@ -19,23 +19,34 @@ static bool s_colorReq = false;
 static bool s_coldReq  = false;
 static bool s_exitReq  = false;
 
-void ps2_begin()
+void ps2_begin(int clk_pin, int dat_pin)
 {
 	if (s_started) return;
 
-	// GPIO33 = CLK, GPIO32 = DATA (defaults da FabGL = pinos da TTGO VGA32)
-	//
 	// ATENCAO ao modo: virtualKeyAvailable()/getNextVirtualKey() leem de uma
 	// FILA que so existe com CreateVirtualKeysQueue. Com GenerateVirtualKeys
 	// as teclas sao geradas mas nao enfileiradas, e virtualKeyAvailable()
-	// retorna false para sempre.
-	ps2.begin(PS2Preset::KeyboardPort0, KbdMode::CreateVirtualKeysQueue);
+	// retorna false para sempre. Isso vale nos DOIS caminhos abaixo.
+	if (clk_pin == 33 && dat_pin == 32)
+	{
+		// Pinos padrao da TTGO VGA32: o preset configura tudo sozinho.
+		ps2.begin(PS2Preset::KeyboardPort0, KbdMode::CreateVirtualKeysQueue);
+	}
+	else
+	{
+		// Pinos personalizados (lidos do /bootl.rc). Configuracao manual.
+		ps2.begin((gpio_num_t)clk_pin, (gpio_num_t)dat_pin);
+		ps2.setKeyboard(new fabgl::Keyboard);
+		ps2.keyboard()->begin((gpio_num_t)clk_pin, (gpio_num_t)dat_pin,
+		                      true,                                  // generateVirtualKeys
+		                      true);                                 // createVirtualKeysQueue
+	}
 	s_started = true;
 
 	auto kbd = ps2.keyboard();
 	bool present = (kbd && kbd->isKeyboardAvailable());
-	Serial.printf("[PS2] init: GPIO33=CLK GPIO32=DATA | teclado detectado: %s\n",
-	              present ? "SIM" : "NAO");
+	Serial.printf("[PS2] init: CLK=%d DAT=%d | teclado detectado: %s\n",
+	              clk_pin, dat_pin, present ? "SIM" : "NAO");
 	if (!present)
 		Serial.println("[PS2] teclado nao respondeu ao handshake -- checar cabo/conector/alimentacao");
 }

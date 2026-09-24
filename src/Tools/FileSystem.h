@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 #define SD_CLK   14
 //#define SD_MISO   2
-#define SD_MISO_LILYGO  35
+#define SD_MISO_LILYGO  2
 #define SD_MISO_OLIMEX  35
 #define SD_MOSI  12
 #define SD_CS    13
@@ -212,5 +212,60 @@ public:
 		file.close();
 
 		return readlen;
+	}
+
+	// Le /bootl.rc (gerado pelo bootloader) para obter os pinos do teclado PS/2.
+	// Formato, uma chave por linha:
+	//     kbddat=32
+	//     kbdclk=33
+	//     magicb=36
+	// Preenche clk/dat/magic com o que achar; deixa intactos os que faltarem
+	// (o chamador ja pos os defaults). Retorna false se o arquivo nao existe.
+	//
+	// Usa SD.open (mesma via do resto), entao exige BeginSD() antes.
+	bool ReadBootlRC(int *clk, int *dat, int *magic)
+	{
+		if (!_sdOk) return false;
+
+		File f = SD.open("/bootl.rc");
+		if (!f)
+		{
+			Serial.println("[bootl.rc] nao encontrado, usando defaults (CLK=33 DAT=32)");
+			return false;
+		}
+
+		char line[48];
+		int  i = 0;
+		while (f.available() && i < (int)sizeof(line) - 1)
+		{
+			char ch = f.read();
+			if (ch == '\n' || ch == '\r')
+			{
+				line[i] = 0;
+				int v;
+				if      (clk   && sscanf(line, "kbdclk=%d", &v) == 1) *clk   = v;
+				else if (dat   && sscanf(line, "kbddat=%d", &v) == 1) *dat   = v;
+				else if (magic && sscanf(line, "magicb=%d", &v) == 1) *magic = v;
+				i = 0;
+			}
+			else
+			{
+				line[i++] = ch;
+			}
+		}
+		// ultima linha sem \n no fim
+		if (i > 0)
+		{
+			line[i] = 0;
+			int v;
+			if      (clk   && sscanf(line, "kbdclk=%d", &v) == 1) *clk   = v;
+			else if (dat   && sscanf(line, "kbddat=%d", &v) == 1) *dat   = v;
+			else if (magic && sscanf(line, "magicb=%d", &v) == 1) *magic = v;
+		}
+		f.close();
+
+		Serial.printf("[bootl.rc] CLK=%d DAT=%d MAGIC=%d\n",
+		              clk ? *clk : -1, dat ? *dat : -1, magic ? *magic : -1);
+		return true;
 	}
 };

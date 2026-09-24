@@ -11,8 +11,11 @@
 // TTGO VGA32 v1.4: conector PS/2 do teclado = GPIO33 (CLK) / GPIO32 (DATA),
 // que sao exatamente os defaults do PS2Preset::KeyboardPort0 da FabGL.
 
-// Inicializa o controlador PS/2. Chamar depois do VGA estar rodando.
-void ps2_begin();
+// Inicializa o controlador PS/2 com os pinos informados. Chamar depois do VGA
+// estar rodando. Passe clk=33 dat=32 para o comportamento padrao (a FabGL
+// configura os pinos sozinha via preset); qualquer outro par usa configuracao
+// manual. Os pinos vem do /bootl.rc do SD (ver FileSystem), com fallback 33/32.
+void ps2_begin(int clk_pin = 33, int dat_pin = 32);
 
 // Retorna o codigo de tecla do Apple II (0x00-0x7F, SEM o strobe do bit 7),
 // ou -1 se nao houver tecla nova.
