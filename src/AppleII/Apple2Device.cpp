@@ -176,7 +176,21 @@ void Apple2Device::Create(CPU* cpu)
 
 	// Teclado PS/2 (GPIO33=CLK, GPIO32=DATA na TTGO VGA32).
 	// Chamado aqui porque Create() roda depois do VGA ja estar de pe.
-	ps2_begin();
+	//
+	// Antes do ps2_begin, tentamos ler /bootl.rc do SD para sobrescrever
+	// os pinos do teclado. Se o SD nao montar ou o arquivo nao existir,
+	// segue com os defaults (CLK=33, DAT=32). O Apple ][ nao tem "magic
+	// button", entao a chave magicb do bootl.rc e ignorada (nullptr).
+	// O filesystem.BeginSD() e idempotente -- SelectFloppy() pode chama-lo
+	// de novo depois sem problema.
+	int kbd_clk = 33;
+	int kbd_dat = 32;
+	if (filesystem.BeginSD())
+		filesystem.ReadBootlRC(&kbd_clk, &kbd_dat, nullptr);
+	else
+		Serial.println("[bootl.rc] SD nao montou agora; usando pinos default do teclado");
+
+	ps2_begin(kbd_clk, kbd_dat);
 
 	// Audio (GPIO25, DAC interno)
 	spk_begin();
